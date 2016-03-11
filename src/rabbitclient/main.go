@@ -1,8 +1,10 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"sync"
@@ -32,7 +34,7 @@ func (s *session) add(str string) {
 
 func (s *session) print() string {
 	s.Lock()
-	str := "<html><head><title>Output</title></head><body>"
+	str := "<html><head><title>Output</title><meta http-equiv=\"refresh\" content=\"2\" /></head><body>"
 
 	str += "Messages<br />"
 	for _, m := range s.msgs {
@@ -48,6 +50,12 @@ func (s *session) print() string {
 }
 
 func main() {
+	//define flags
+	var port int
+	flag.IntVar(&port, "port", 9001, "the port in which to bind to")
+	//parse
+	flag.Parse()
+
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
@@ -78,7 +86,7 @@ func main() {
 	failOnError(err, "Failed to register a consumer")
 
 	u4, err := uuid.NewV4()
-	failOnError(err, "Failed to register a consumer")
+	failOnError(err, "Failed to generate a uuid")
 	log.Printf("Client %s", u4.String())
 
 	s := new(session)
@@ -114,7 +122,10 @@ func main() {
 				}
 			}
 
-			time.Sleep(5 * time.Second)
+			rand.Seed(time.Now().UnixNano())
+			random := rand.Intn(4) + 1
+			time.Sleep(time.Duration(random) * time.Second)
+
 			count++
 		}
 	}()
@@ -122,9 +133,8 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		serveRest(w, r, s)
 	})
-	http.ListenAndServe(":9001", nil)
+	http.ListenAndServe(":"+strconv.Itoa(port), nil)
 
-	log.Printf(" [*] Awaiting RPC requests")
 	<-forever
 }
 
