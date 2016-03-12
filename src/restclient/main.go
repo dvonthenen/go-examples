@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 
 	"github.com/icza/gowut/gwu"
 )
@@ -45,6 +47,14 @@ func (h *myButtonHandler) HandleEvent(e gwu.Event) {
 }
 
 func main() {
+	//define flags
+	var port int
+	flag.IntVar(&port, "port", 9050, "the REST server in which to bind to")
+	var address string
+	flag.StringVar(&address, "address", "127.0.0.1", "the REST server in which to bind to")
+	//parse
+	flag.Parse()
+
 	// Create and build a window
 	win := gwu.NewWindow("main", "3-Tier App Demo")
 	win.Style().SetFullWidth()
@@ -106,7 +116,7 @@ func main() {
 	acctlist.Add(p)
 
 	//TODO: REST API call to GET... loop adding labels
-	url := "http://127.0.0.1:9000/user"
+	url := "http://" + address + ":" + strconv.Itoa(port) + "/user"
 	fmt.Println("URL:>", url)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -155,7 +165,7 @@ func main() {
 	win.Add(acctlist)
 
 	// Create and start a GUI server (omitting error check)
-	server := gwu.NewServer("", "localhost:8081")
+	server := gwu.NewServer("", "127.0.0.1:8000")
 	server.SetText("Test GUI App")
 	server.AddWin(win)
 	server.Start("") // Also opens windows list in browser

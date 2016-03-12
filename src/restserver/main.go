@@ -3,10 +3,12 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/mux"
@@ -22,8 +24,11 @@ type account struct {
 
 type accounts []account
 
+var port int
+var address string
+
 func listusers(w http.ResponseWriter, r *http.Request) {
-	db, err := sql.Open("postgres", "user=dev password=vmware dbname=demo")
+	db, err := sql.Open("postgres", "host="+address+" user=dev password=vmware dbname=demo")
 	if err != nil {
 		panic(err)
 	}
@@ -80,7 +85,7 @@ func adduser(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	db, err := sql.Open("postgres", "user=dev password=vmware dbname=demo")
+	db, err := sql.Open("postgres", "host="+address+" user=dev password=vmware dbname=demo")
 	if err != nil {
 		panic(err)
 	}
@@ -113,7 +118,7 @@ func deleteuser(w http.ResponseWriter, r *http.Request) {
 	id := vars["id"]
 	fmt.Println(w, "Deleting ID: %d", id)
 
-	db, err := sql.Open("postgres", "user=dev password=vmware dbname=demo")
+	db, err := sql.Open("postgres", "host="+address+" user=dev password=vmware dbname=demo")
 	if err != nil {
 		panic(err)
 	}
@@ -133,11 +138,17 @@ func deleteuser(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	//define flags
+	flag.IntVar(&port, "port", 9000, "the port in which to bind to")
+	flag.StringVar(&address, "address", "127.0.0.1", "the postgres server in which to bind to")
+	//parse
+	flag.Parse()
+
 	mux := mux.NewRouter()
 	mux.HandleFunc("/user", listusers).Methods("GET")
 	mux.HandleFunc("/user", adduser).Methods("POST")
 	mux.HandleFunc("/user/{id}", deleteuser).Methods("DELETE")
 	n := negroni.Classic()
 	n.UseHandler(mux)
-	n.Run(":9000")
+	n.Run(":" + strconv.Itoa(port))
 }

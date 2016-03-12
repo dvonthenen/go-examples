@@ -54,11 +54,13 @@ func (s *session) print() string {
 func main() {
 	//define flags
 	var port int
-	flag.IntVar(&port, "port", 9000, "the port in which to bind to")
+	flag.IntVar(&port, "port", 9000, "the port in which to bind the HTTP server to")
+	var address string
+	flag.StringVar(&address, "address", "127.0.0.1", "the rabbit server in which to bind to")
 	//parse
 	flag.Parse()
 
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	conn, err := amqp.Dial("amqp://guest:guest@" + address + ":5672/")
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
 
