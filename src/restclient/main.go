@@ -21,6 +21,45 @@ type account struct {
 
 type accounts []account
 
+func adduserform() gwu.Panel {
+	addform := gwu.NewVerticalPanel()
+	addform.Style().SetBorder2(1, gwu.BrdStyleSolid, gwu.ClrBlack)
+	addform.SetCellPadding(10)
+	addform.SetAttr("width", "800")
+	addform.Add(gwu.NewLabel("Add New Accounts"))
+
+	var usernames []gwu.TextBox
+	var names []gwu.TextBox
+	var emails []gwu.TextBox
+
+	for i := 0; i < 3; i++ {
+		p := gwu.NewHorizontalPanel()
+		p.SetCellPadding(2)
+		p.Add(gwu.NewLabel("Username:"))
+		tbusername := gwu.NewTextBox("")
+		p.Add(tbusername)
+		p.Add(gwu.NewLabel("Name:"))
+		tbname := gwu.NewTextBox("")
+		p.Add(tbname)
+		p.Add(gwu.NewLabel("Email:"))
+		tbemail := gwu.NewTextBox("")
+		p.Add(tbemail)
+
+		usernames = append(usernames, tbusername)
+		names = append(names, tbname)
+		emails = append(emails, tbemail)
+
+		addform.Add(p)
+	}
+
+	btnadd := gwu.NewButton("Add")
+	btnadd.SetAttr("align", "center")
+	btnadd.AddEHandler(&myBtnAdd{usernames, names, emails}, gwu.ETypeClick)
+	addform.Add(btnadd)
+
+	return addform
+}
+
 type myBtnDelete struct {
 	id     int
 	parent gwu.Panel
@@ -161,64 +200,11 @@ func (h *myBtnRefresh) HandleEvent(e gwu.Event) {
 	}
 }
 
-func main() {
-	//define flags
-	var port int
-	flag.IntVar(&port, "port", 9000, "the REST server in which to bind to")
-	var address string
-	flag.StringVar(&address, "address", "127.0.0.1", "the REST server in which to bind to")
-	//parse
-	flag.Parse()
-
-	// Create and build a window
-	win := gwu.NewWindow("", "3-Tier App Demo")
-	win.Style().SetFullWidth()
-	win.SetHAlign(gwu.HACenter)
-	win.SetCellPadding(2)
-
-	//Add users
-	addform := gwu.NewVerticalPanel()
-	addform.Style().SetBorder2(1, gwu.BrdStyleSolid, gwu.ClrBlack)
-	addform.SetCellPadding(10)
-	addform.SetAttr("width", "400")
-	addform.Add(gwu.NewLabel("Add New Accounts"))
-
-	var usernames []gwu.TextBox
-	var names []gwu.TextBox
-	var emails []gwu.TextBox
-
-	for i := 0; i < 3; i++ {
-		p := gwu.NewHorizontalPanel()
-		p.SetCellPadding(2)
-		p.Add(gwu.NewLabel("Username:"))
-		tbusername := gwu.NewTextBox("")
-		p.Add(tbusername)
-		p.Add(gwu.NewLabel("Name:"))
-		tbname := gwu.NewTextBox("")
-		p.Add(tbname)
-		p.Add(gwu.NewLabel("Email:"))
-		tbemail := gwu.NewTextBox("")
-		p.Add(tbemail)
-
-		usernames = append(usernames, tbusername)
-		names = append(names, tbname)
-		emails = append(emails, tbemail)
-
-		addform.Add(p)
-	}
-
-	btnadd := gwu.NewButton("Add")
-	btnadd.SetAttr("align", "center")
-	btnadd.AddEHandler(&myBtnAdd{usernames, names, emails}, gwu.ETypeClick)
-	addform.Add(btnadd)
-
-	win.Add(addform)
-
-	//Display users...
+func listuserform(address string, port int) gwu.Panel {
 	acctlist := gwu.NewVerticalPanel()
 	acctlist.Style().SetBorder2(1, gwu.BrdStyleSolid, gwu.ClrBlack)
 	acctlist.SetCellPadding(10)
-	acctlist.SetAttr("width", "400")
+	acctlist.SetAttr("width", "800")
 
 	var panels []gwu.Panel
 
@@ -235,7 +221,29 @@ func main() {
 	//get current list of accounts
 	refresh(address, port, acctlist, panels)
 
-	win.Add(acctlist)
+	return acctlist
+}
+
+func main() {
+	//define flags
+	var port int
+	flag.IntVar(&port, "port", 9000, "the REST server in which to bind to")
+	var address string
+	flag.StringVar(&address, "address", "127.0.0.1", "the REST server in which to bind to")
+	//parse
+	flag.Parse()
+
+	// Create and build a window
+	win := gwu.NewWindow("main", "3-Tier App Demo")
+	win.Style().SetFullWidth()
+	win.SetHAlign(gwu.HACenter)
+	win.SetCellPadding(2)
+
+	//Add users
+	win.Add(adduserform())
+
+	//Display users...
+	win.Add(listuserform(address, port))
 
 	// Create and start a GUI server (omitting error check)
 	server := gwu.NewServer("", "127.0.0.1:8000")
