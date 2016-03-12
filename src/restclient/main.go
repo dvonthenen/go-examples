@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -21,107 +22,7 @@ type account struct {
 
 type accounts []account
 
-func adduserform() gwu.Panel {
-	addform := gwu.NewVerticalPanel()
-	addform.Style().SetBorder2(1, gwu.BrdStyleSolid, gwu.ClrBlack)
-	addform.SetCellPadding(10)
-	addform.SetAttr("width", "800")
-	addform.Add(gwu.NewLabel("Add New Accounts"))
-
-	var usernames []gwu.TextBox
-	var names []gwu.TextBox
-	var emails []gwu.TextBox
-
-	for i := 0; i < 3; i++ {
-		p := gwu.NewHorizontalPanel()
-		p.SetCellPadding(2)
-		p.Add(gwu.NewLabel("Username:"))
-		tbusername := gwu.NewTextBox("")
-		p.Add(tbusername)
-		p.Add(gwu.NewLabel("Name:"))
-		tbname := gwu.NewTextBox("")
-		p.Add(tbname)
-		p.Add(gwu.NewLabel("Email:"))
-		tbemail := gwu.NewTextBox("")
-		p.Add(tbemail)
-
-		usernames = append(usernames, tbusername)
-		names = append(names, tbname)
-		emails = append(emails, tbemail)
-
-		addform.Add(p)
-	}
-
-	btnadd := gwu.NewButton("Add")
-	btnadd.SetAttr("align", "center")
-	btnadd.AddEHandler(&myBtnAdd{usernames, names, emails}, gwu.ETypeClick)
-	addform.Add(btnadd)
-
-	return addform
-}
-
-type myBtnDelete struct {
-	id     int
-	parent gwu.Panel
-	panel  gwu.Panel
-}
-
-func (h *myBtnDelete) HandleEvent(e gwu.Event) {
-	if _, isButton := e.Src().(gwu.Button); isButton {
-
-		fmt.Println("Delete called")
-		fmt.Println("Id:", h.id)
-		fmt.Println("Parent:", h.parent.Id().String())
-		fmt.Println("Panel:", h.panel.Id().String())
-
-		//TODO Call Add REST API
-
-		h.parent.Remove(h.panel)
-
-		e.MarkDirty(h.parent)
-	}
-}
-
-type myBtnAdd struct {
-	usernames []gwu.TextBox
-	names     []gwu.TextBox
-	emails    []gwu.TextBox
-}
-
-func (h *myBtnAdd) HandleEvent(e gwu.Event) {
-	if _, isButton := e.Src().(gwu.Button); isButton {
-
-		fmt.Println("Add called")
-
-		for i := 0; i < 3; i++ {
-			fmt.Println("Username: " + h.usernames[i].Text())
-			fmt.Println("Name: " + h.names[i].Text())
-			fmt.Println("Email: " + h.emails[i].Text())
-
-			if len(h.usernames[i].Text()) == 0 ||
-				len(h.names[i].Text()) == 0 ||
-				len(h.emails[i].Text()) == 0 {
-				continue
-			}
-
-			//TODO Call Add REST API
-
-			h.usernames[i].SetText("")
-			h.names[i].SetText("")
-			h.emails[i].SetText("")
-
-			e.MarkDirty(h.usernames[i])
-			e.MarkDirty(h.names[i])
-			e.MarkDirty(h.emails[i])
-		}
-	}
-}
-
-func refresh(address string, port int, parent gwu.Panel, panels []gwu.Panel) {
-	for i := 0; i < len(panels); i++ {
-		parent.Remove(panels[i])
-	}
-
+func refreshRestApi(address string, port int) accounts {
 	url := "http://" + address + ":" + strconv.Itoa(port) + "/user"
 	fmt.Println("URL:>", url)
 
@@ -156,7 +57,175 @@ func refresh(address string, port int, parent gwu.Panel, panels []gwu.Panel) {
 		fmt.Println("Username:", accts[i].Username)
 		fmt.Println("Name:", accts[i].Name)
 		fmt.Println("Email:", accts[i].Email)
+	}
 
+	return accts
+}
+
+func addRestApi(address string, port int, accts accounts) accounts {
+	url := "http://" + address + ":" + strconv.Itoa(port) + "/user"
+	fmt.Println("URL:>", url)
+
+	response, err := json.MarshalIndent(accts, "", "  ")
+	if err != nil {
+		panic(err) //not expecting error... just a short cut
+	}
+
+	fmt.Println("response:", string(response))
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(response))
+	//req.Header.Set("X-Custom-Header", "myvalue")
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(io.LimitReader(resp.Body, 1048576))
+	if err != nil {
+		panic(err)
+	}
+	if err := resp.Body.Close(); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("response Status:", resp.Status)
+	fmt.Println("response Headers:", resp.Header)
+	fmt.Println("response Body:", string(body))
+
+	var newaccts accounts
+	err = json.Unmarshal(body, &newaccts)
+
+	for i := 0; i < len(accts); i++ {
+		fmt.Println("Id:", newaccts[i].Id)
+		fmt.Println("Username:", newaccts[i].Username)
+		fmt.Println("Name:", newaccts[i].Name)
+		fmt.Println("Email:", newaccts[i].Email)
+	}
+
+	return newaccts
+}
+
+func deleteRestApi(address string, port int, id int) {
+	url := "http://" + address + ":" + strconv.Itoa(port) + "/user/" + strconv.Itoa(id)
+	fmt.Println("URL:>", url)
+
+	req, err := http.NewRequest("DELETE", url, nil)
+	//req.Header.Set("X-Custom-Header", "myvalue")
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(io.LimitReader(resp.Body, 1048576))
+	if err != nil {
+		panic(err)
+	}
+	if err := resp.Body.Close(); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("response Status:", resp.Status)
+	fmt.Println("response Headers:", resp.Header)
+	fmt.Println("response Body:", string(body))
+}
+
+type myBtnDelete struct {
+	address string
+	port    int
+	id      int
+	parent  gwu.Panel
+	panel   gwu.Panel
+}
+
+func (h *myBtnDelete) HandleEvent(e gwu.Event) {
+	if _, isButton := e.Src().(gwu.Button); isButton {
+
+		fmt.Println("Delete called")
+		fmt.Println("Id:", h.id)
+		fmt.Println("Parent:", h.parent.Id().String())
+		fmt.Println("Panel:", h.panel.Id().String())
+
+		deleteRestApi(h.address, h.port, h.id)
+
+		h.parent.Remove(h.panel)
+
+		e.MarkDirty(h.parent)
+	}
+}
+
+type myBtnAdd struct {
+	address   string
+	port      int
+	usernames []gwu.TextBox
+	names     []gwu.TextBox
+	emails    []gwu.TextBox
+	acctlist  gwu.Panel
+}
+
+func (h *myBtnAdd) HandleEvent(e gwu.Event) {
+	if _, isButton := e.Src().(gwu.Button); isButton {
+
+		fmt.Println("Add called")
+
+		var accts accounts
+
+		for i := 0; i < 3; i++ {
+			fmt.Println("Username: " + h.usernames[i].Text())
+			fmt.Println("Name: " + h.names[i].Text())
+			fmt.Println("Email: " + h.emails[i].Text())
+
+			if len(h.usernames[i].Text()) == 0 ||
+				len(h.names[i].Text()) == 0 ||
+				len(h.emails[i].Text()) == 0 {
+				continue
+			}
+
+			accts = append(accts, account{0, h.usernames[i].Text(), h.names[i].Text(), h.emails[i].Text()})
+
+			h.usernames[i].SetText("")
+			h.names[i].SetText("")
+			h.emails[i].SetText("")
+
+			e.MarkDirty(h.usernames[i])
+			e.MarkDirty(h.names[i])
+			e.MarkDirty(h.emails[i])
+		}
+
+		newaccts := addRestApi(h.address, h.port, accts)
+
+		for i := 0; i < len(newaccts); i++ {
+			p := gwu.NewHorizontalPanel()
+			p.SetCellPadding(2)
+			p.Add(gwu.NewLabel("Username: " + newaccts[i].Username))
+			p.Add(gwu.NewLabel("Name: " + newaccts[i].Name))
+			p.Add(gwu.NewLabel("Email: " + newaccts[i].Email))
+
+			btndelete := gwu.NewButton("Delete")
+			btndelete.SetAttr("align", "center")
+			btndelete.AddEHandler(&myBtnDelete{h.address, h.port, newaccts[i].Id, h.acctlist, p}, gwu.ETypeClick)
+			p.Add(btndelete)
+
+			fmt.Println("Panel Id:", p.Id().String())
+
+			h.acctlist.Add(p)
+		}
+
+		e.MarkDirty(h.acctlist)
+	}
+}
+
+func refresh(address string, port int, parent gwu.Panel) {
+	accts := refreshRestApi(address, port)
+
+	for i := 0; i < len(accts); i++ {
 		p := gwu.NewHorizontalPanel()
 		p.SetCellPadding(2)
 		p.Add(gwu.NewLabel("Username: " + accts[i].Username))
@@ -165,39 +234,52 @@ func refresh(address string, port int, parent gwu.Panel, panels []gwu.Panel) {
 
 		btndelete := gwu.NewButton("Delete")
 		btndelete.SetAttr("align", "center")
-		btndelete.AddEHandler(&myBtnDelete{accts[i].Id, parent, p}, gwu.ETypeClick)
+		btndelete.AddEHandler(&myBtnDelete{address, port, accts[i].Id, parent, p}, gwu.ETypeClick)
 		p.Add(btndelete)
 
 		fmt.Println("Panel Id:", p.Id().String())
-
-		panels = append(panels, p)
 
 		parent.Add(p)
 	}
 }
 
-type myBtnRefresh struct {
-	address string
-	port    int
-	parent  gwu.Panel
-	panels  []gwu.Panel
-}
+func adduserform(address string, port int, acctlist gwu.Panel) gwu.Panel {
+	addform := gwu.NewVerticalPanel()
+	addform.Style().SetBorder2(1, gwu.BrdStyleSolid, gwu.ClrBlack)
+	addform.SetCellPadding(10)
+	addform.SetAttr("width", "800")
+	addform.Add(gwu.NewLabel("Add New Accounts"))
 
-func (h *myBtnRefresh) HandleEvent(e gwu.Event) {
-	if _, isButton := e.Src().(gwu.Button); isButton {
+	var usernames []gwu.TextBox
+	var names []gwu.TextBox
+	var emails []gwu.TextBox
 
-		fmt.Println("Refresh called")
-		fmt.Println("address:", h.address)
-		fmt.Println("port:", h.port)
-		fmt.Println("parent:", h.parent.Id().String())
-		for i := 0; i < len(h.panels); i++ {
-			fmt.Println("panel:", h.panels[i].Id().String())
-		}
+	for i := 0; i < 3; i++ {
+		p := gwu.NewHorizontalPanel()
+		p.SetCellPadding(2)
+		p.Add(gwu.NewLabel("Username:"))
+		tbusername := gwu.NewTextBox("")
+		p.Add(tbusername)
+		p.Add(gwu.NewLabel("Name:"))
+		tbname := gwu.NewTextBox("")
+		p.Add(tbname)
+		p.Add(gwu.NewLabel("Email:"))
+		tbemail := gwu.NewTextBox("")
+		p.Add(tbemail)
 
-		refresh(h.address, h.port, h.parent, h.panels)
+		usernames = append(usernames, tbusername)
+		names = append(names, tbname)
+		emails = append(emails, tbemail)
 
-		e.MarkDirty(h.parent)
+		addform.Add(p)
 	}
+
+	btnadd := gwu.NewButton("Add")
+	btnadd.SetAttr("align", "center")
+	btnadd.AddEHandler(&myBtnAdd{address, port, usernames, names, emails, acctlist}, gwu.ETypeClick)
+	addform.Add(btnadd)
+
+	return addform
 }
 
 func listuserform(address string, port int) gwu.Panel {
@@ -206,20 +288,10 @@ func listuserform(address string, port int) gwu.Panel {
 	acctlist.SetCellPadding(10)
 	acctlist.SetAttr("width", "800")
 
-	var panels []gwu.Panel
-
-	title2 := gwu.NewHorizontalPanel()
-	title2.SetCellPadding(2)
-	title2.Add(gwu.NewLabel("Current List of Accounts"))
-	btnrefresh := gwu.NewButton("Refresh")
-	btnrefresh.SetAttr("align", "center")
-	btnrefresh.AddEHandler(&myBtnRefresh{address, port, acctlist, panels}, gwu.ETypeClick)
-	title2.Add(btnrefresh)
-
-	acctlist.Add(title2)
+	acctlist.Add(gwu.NewLabel("Current List of Accounts"))
 
 	//get current list of accounts
-	refresh(address, port, acctlist, panels)
+	refresh(address, port, acctlist)
 
 	return acctlist
 }
@@ -239,11 +311,12 @@ func main() {
 	win.SetHAlign(gwu.HACenter)
 	win.SetCellPadding(2)
 
-	//Add users
-	win.Add(adduserform())
-
 	//Display users...
-	win.Add(listuserform(address, port))
+	acctlist := listuserform(address, port)
+	win.Add(acctlist)
+
+	//Add users
+	win.Add(adduserform(address, port, acctlist))
 
 	// Create and start a GUI server (omitting error check)
 	server := gwu.NewServer("", "127.0.0.1:8000")
