@@ -55,11 +55,11 @@ func main() {
 			failOnError(err, "Failed to open file for append")
 			defer outFile.Close()
 
-			_, err = outFile.WriteString("Creting my data #" + strconv.Itoa(count) + "\n")
+			_, err = outFile.WriteString("Creating my data #" + strconv.Itoa(count) + "\n")
 			failOnError(err, "Failed to append file")
 
 			rand.Seed(time.Now().UnixNano())
-			random := rand.Intn(2) + 1
+			random := rand.Intn(7) + 1
 			time.Sleep(time.Duration(random) * time.Second)
 
 			count++
