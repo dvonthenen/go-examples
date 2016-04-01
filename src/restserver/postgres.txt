@@ -21,7 +21,8 @@ CREATE TABLE account (
 id SERIAL PRIMARY KEY,
 username VARCHAR(50) NOT NULL,
 name VARCHAR(200) NOT NULL,
-email VARCHAR(200) NOT NULL
+email VARCHAR(200) NOT NULL,
+endpoint VARCHAR(250) NOT NULL
 );
 
 INSERT INTO account (username, name, email) VALUES ( 'dvonthenen', 'David', 'david.vonthenen@emc.com' );
