@@ -98,7 +98,7 @@ func adduser(w http.ResponseWriter, r *http.Request) {
 		//INSERT
 		var userid int
 		err = db.QueryRow("INSERT INTO account (username, name, email, endpoint) VALUES ($1, $2, $3, $4) RETURNING id",
-			accts[i].Username, accts[i].Name, accts[i].Email, r.URL.String()).Scan(&userid)
+			accts[i].Username, accts[i].Name, accts[i].Email, r.Host).Scan(&userid)
 		if err != nil {
 			panic(err)
 		}
