@@ -140,7 +140,7 @@ func addRestAPI(service string, address string, port int, accts accounts) accoun
 func deleteRestAPI(service string, address string, port int, id int) {
 	url := "http://" + address + ":" + strconv.Itoa(port) + "/user/" + strconv.Itoa(id)
 	if len(service) > 0 {
-		url = generateDiscoveryURI(service)
+		url = generateDiscoveryURI(service) + "/" + strconv.Itoa(id)
 	}
 	fmt.Println("URL:>", url)
 
@@ -181,6 +181,7 @@ func (h *myBtnDelete) HandleEvent(e gwu.Event) {
 	if _, isButton := e.Src().(gwu.Button); isButton {
 
 		fmt.Println("Delete called")
+		fmt.Println("Service:", h.service)
 		fmt.Println("Id:", h.id)
 		fmt.Println("Parent:", h.parent.Id().String())
 		fmt.Println("Panel:", h.panel.Id().String())
