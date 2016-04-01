@@ -28,7 +28,7 @@ var port int
 var address string
 
 func listusers(w http.ResponseWriter, r *http.Request) {
-	db, err := sql.Open("postgres", "host="+address+" user=dev password=vmware dbname=demo")
+	db, err := sql.Open("postgres", "host="+address+" user=dev password=vmware dbname=demo sslmode=disable")
 	if err != nil {
 		panic(err)
 	}
@@ -85,7 +85,7 @@ func adduser(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	db, err := sql.Open("postgres", "host="+address+" user=dev password=vmware dbname=demo")
+	db, err := sql.Open("postgres", "host="+address+" user=dev password=vmware dbname=demo sslmode=disable")
 	if err != nil {
 		panic(err)
 	}
@@ -118,7 +118,7 @@ func deleteuser(w http.ResponseWriter, r *http.Request) {
 	id := vars["id"]
 	fmt.Println(w, "Deleting ID: %d", id)
 
-	db, err := sql.Open("postgres", "host="+address+" user=dev password=vmware dbname=demo")
+	db, err := sql.Open("postgres", "host="+address+" user=dev password=vmware dbname=demo sslmode=disable")
 	if err != nil {
 		panic(err)
 	}
