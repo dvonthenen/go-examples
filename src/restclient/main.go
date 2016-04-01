@@ -331,8 +331,10 @@ func listuserform(service string, address string, port int) gwu.Panel {
 
 func main() {
 	//define flags
-	var port int
-	flag.IntVar(&port, "port", 9000, "the REST server in which to bind to")
+	var uiport int
+	flag.IntVar(&uiport, "uiport", 8000, "the port which to serve up the UI to")
+	var restport int
+	flag.IntVar(&restport, "restport", 9000, "the REST server in which to bind to")
 	var address string
 	flag.StringVar(&address, "address", "127.0.0.1", "the REST server in which to bind to")
 	var service string
@@ -347,14 +349,14 @@ func main() {
 	win.SetCellPadding(2)
 
 	//Display users...
-	acctlist := listuserform(service, address, port)
+	acctlist := listuserform(service, address, restport)
 	win.Add(acctlist)
 
 	//Add users
-	win.Add(adduserform(service, address, port, acctlist))
+	win.Add(adduserform(service, address, restport, acctlist))
 
 	// Create and start a GUI server (omitting error check)
-	server := gwu.NewServer("", "127.0.0.1:8000")
+	server := gwu.NewServer("", "127.0.0.1:"+strconv.Itoa(uiport))
 	server.SetText("Test GUI App")
 	server.AddWin(win)
 	server.Start("") // Also opens windows list in browser
