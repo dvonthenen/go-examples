@@ -38,7 +38,7 @@ func generateDiscoveryURI(service string) string {
 		fmt.Println("Discovered service:", srv.Target, "port", srv.Port)
 	}
 	rand.Seed(time.Now().UnixNano())
-	random := rand.Intn(len(srvs)) % len(srvs)
+	random := rand.Intn(len(srvs))
 	url := "http://" + srvs[random].Target + ":" + strconv.Itoa(int(srvs[random].Port)) + "/user"
 
 	return url
