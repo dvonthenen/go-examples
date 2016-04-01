@@ -356,7 +356,7 @@ func main() {
 	win.Add(adduserform(service, address, restport, acctlist))
 
 	// Create and start a GUI server (omitting error check)
-	server := gwu.NewServer("", "127.0.0.1:"+strconv.Itoa(uiport))
+	server := gwu.NewServer("", ":"+strconv.Itoa(uiport))
 	server.SetText("Test GUI App")
 	server.AddWin(win)
 	server.Start("") // Also opens windows list in browser
