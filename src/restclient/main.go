@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
+	"net"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/icza/gowut/gwu"
 )
@@ -22,8 +25,30 @@ type account struct {
 
 type accounts []account
 
-func refreshRestApi(address string, port int) accounts {
+func generateDiscoveryURI(service string) string {
+	fmt.Println("USING AUTODISCOVERY")
+	_, srvs, err := net.LookupSRV(service, "tcp", "marathon.mesos")
+	if err != nil {
+		panic(err)
+	}
+	if len(srvs) == 0 {
+		fmt.Println("got no record")
+	}
+	for _, srv := range srvs {
+		fmt.Println("Discovered service:", srv.Target, "port", srv.Port)
+	}
+	rand.Seed(time.Now().UnixNano())
+	random := rand.Intn(len(srvs)) % len(srvs)
+	url := "http://" + srvs[random].Target + ":" + strconv.Itoa(int(srvs[random].Port)) + "/user"
+
+	return url
+}
+
+func refreshRestAPI(service string, address string, port int) accounts {
 	url := "http://" + address + ":" + strconv.Itoa(port) + "/user"
+	if len(service) > 0 {
+		url = generateDiscoveryURI(service)
+	}
 	fmt.Println("URL:>", url)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -62,8 +87,11 @@ func refreshRestApi(address string, port int) accounts {
 	return accts
 }
 
-func addRestApi(address string, port int, accts accounts) accounts {
+func addRestAPI(service string, address string, port int, accts accounts) accounts {
 	url := "http://" + address + ":" + strconv.Itoa(port) + "/user"
+	if len(service) > 0 {
+		url = generateDiscoveryURI(service)
+	}
 	fmt.Println("URL:>", url)
 
 	response, err := json.MarshalIndent(accts, "", "  ")
@@ -109,8 +137,11 @@ func addRestApi(address string, port int, accts accounts) accounts {
 	return newaccts
 }
 
-func deleteRestApi(address string, port int, id int) {
+func deleteRestAPI(service string, address string, port int, id int) {
 	url := "http://" + address + ":" + strconv.Itoa(port) + "/user/" + strconv.Itoa(id)
+	if len(service) > 0 {
+		url = generateDiscoveryURI(service)
+	}
 	fmt.Println("URL:>", url)
 
 	req, err := http.NewRequest("DELETE", url, nil)
@@ -138,6 +169,7 @@ func deleteRestApi(address string, port int, id int) {
 }
 
 type myBtnDelete struct {
+	service string
 	address string
 	port    int
 	id      int
@@ -153,7 +185,7 @@ func (h *myBtnDelete) HandleEvent(e gwu.Event) {
 		fmt.Println("Parent:", h.parent.Id().String())
 		fmt.Println("Panel:", h.panel.Id().String())
 
-		deleteRestApi(h.address, h.port, h.id)
+		deleteRestAPI(h.service, h.address, h.port, h.id)
 
 		h.parent.Remove(h.panel)
 
@@ -162,6 +194,7 @@ func (h *myBtnDelete) HandleEvent(e gwu.Event) {
 }
 
 type myBtnAdd struct {
+	service   string
 	address   string
 	port      int
 	usernames []gwu.TextBox
@@ -199,7 +232,7 @@ func (h *myBtnAdd) HandleEvent(e gwu.Event) {
 			e.MarkDirty(h.emails[i])
 		}
 
-		newaccts := addRestApi(h.address, h.port, accts)
+		newaccts := addRestAPI(h.service, h.address, h.port, accts)
 
 		for i := 0; i < len(newaccts); i++ {
 			p := gwu.NewHorizontalPanel()
@@ -210,7 +243,7 @@ func (h *myBtnAdd) HandleEvent(e gwu.Event) {
 
 			btndelete := gwu.NewButton("Delete")
 			btndelete.SetAttr("align", "center")
-			btndelete.AddEHandler(&myBtnDelete{h.address, h.port, newaccts[i].Id, h.acctlist, p}, gwu.ETypeClick)
+			btndelete.AddEHandler(&myBtnDelete{h.service, h.address, h.port, newaccts[i].Id, h.acctlist, p}, gwu.ETypeClick)
 			p.Add(btndelete)
 
 			fmt.Println("Panel Id:", p.Id().String())
@@ -222,8 +255,8 @@ func (h *myBtnAdd) HandleEvent(e gwu.Event) {
 	}
 }
 
-func refresh(address string, port int, parent gwu.Panel) {
-	accts := refreshRestApi(address, port)
+func refresh(service string, address string, port int, parent gwu.Panel) {
+	accts := refreshRestAPI(service, address, port)
 
 	for i := 0; i < len(accts); i++ {
 		p := gwu.NewHorizontalPanel()
@@ -234,7 +267,7 @@ func refresh(address string, port int, parent gwu.Panel) {
 
 		btndelete := gwu.NewButton("Delete")
 		btndelete.SetAttr("align", "center")
-		btndelete.AddEHandler(&myBtnDelete{address, port, accts[i].Id, parent, p}, gwu.ETypeClick)
+		btndelete.AddEHandler(&myBtnDelete{service, address, port, accts[i].Id, parent, p}, gwu.ETypeClick)
 		p.Add(btndelete)
 
 		fmt.Println("Panel Id:", p.Id().String())
@@ -243,7 +276,7 @@ func refresh(address string, port int, parent gwu.Panel) {
 	}
 }
 
-func adduserform(address string, port int, acctlist gwu.Panel) gwu.Panel {
+func adduserform(service string, address string, port int, acctlist gwu.Panel) gwu.Panel {
 	addform := gwu.NewVerticalPanel()
 	addform.Style().SetBorder2(1, gwu.BrdStyleSolid, gwu.ClrBlack)
 	addform.SetCellPadding(10)
@@ -276,13 +309,13 @@ func adduserform(address string, port int, acctlist gwu.Panel) gwu.Panel {
 
 	btnadd := gwu.NewButton("Add")
 	btnadd.SetAttr("align", "center")
-	btnadd.AddEHandler(&myBtnAdd{address, port, usernames, names, emails, acctlist}, gwu.ETypeClick)
+	btnadd.AddEHandler(&myBtnAdd{service, address, port, usernames, names, emails, acctlist}, gwu.ETypeClick)
 	addform.Add(btnadd)
 
 	return addform
 }
 
-func listuserform(address string, port int) gwu.Panel {
+func listuserform(service string, address string, port int) gwu.Panel {
 	acctlist := gwu.NewVerticalPanel()
 	acctlist.Style().SetBorder2(1, gwu.BrdStyleSolid, gwu.ClrBlack)
 	acctlist.SetCellPadding(10)
@@ -291,7 +324,7 @@ func listuserform(address string, port int) gwu.Panel {
 	acctlist.Add(gwu.NewLabel("Current List of Accounts"))
 
 	//get current list of accounts
-	refresh(address, port, acctlist)
+	refresh(service, address, port, acctlist)
 
 	return acctlist
 }
@@ -302,6 +335,8 @@ func main() {
 	flag.IntVar(&port, "port", 9000, "the REST server in which to bind to")
 	var address string
 	flag.StringVar(&address, "address", "127.0.0.1", "the REST server in which to bind to")
+	var service string
+	flag.StringVar(&service, "service", "", "the REST service to autodiscover")
 	//parse
 	flag.Parse()
 
@@ -312,11 +347,11 @@ func main() {
 	win.SetCellPadding(2)
 
 	//Display users...
-	acctlist := listuserform(address, port)
+	acctlist := listuserform(service, address, port)
 	win.Add(acctlist)
 
 	//Add users
-	win.Add(adduserform(address, port, acctlist))
+	win.Add(adduserform(service, address, port, acctlist))
 
 	// Create and start a GUI server (omitting error check)
 	server := gwu.NewServer("", "127.0.0.1:8000")
