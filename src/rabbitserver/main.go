@@ -4,10 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/streadway/amqp"
 )
@@ -51,16 +54,41 @@ func (s *session) print() string {
 	return str
 }
 
+func generateRabbitURI(service string) string {
+	fmt.Println("USING AUTODISCOVERY")
+	_, srvs, err := net.LookupSRV(service, "tcp", "marathon.mesos")
+	if err != nil {
+		panic(err)
+	}
+	if len(srvs) == 0 {
+		fmt.Println("got no record")
+	}
+	for _, srv := range srvs {
+		fmt.Println("Discovered service:", srv.Target, "port", srv.Port)
+	}
+	rand.Seed(time.Now().UnixNano())
+	random := rand.Intn(len(srvs))
+
+	return "amqp://guest:guest@" + srvs[random].Target + ":5672/"
+}
+
 func main() {
 	//define flags
 	var port int
 	flag.IntVar(&port, "port", 9000, "the port in which to bind the HTTP server to")
 	var address string
 	flag.StringVar(&address, "address", "127.0.0.1", "the rabbit server in which to bind to")
+	var service string
+	flag.StringVar(&service, "service", "", "the rabbit service to autodiscover")
 	//parse
 	flag.Parse()
 
-	conn, err := amqp.Dial("amqp://guest:guest@" + address + ":5672/")
+	connstr := "amqp://guest:guest@" + address + ":5672/"
+	if len(service) > 0 {
+		connstr = generateRabbitURI(service)
+	}
+
+	conn, err := amqp.Dial(connstr)
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
 
