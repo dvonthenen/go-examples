@@ -175,7 +175,7 @@ func main() {
 	var rabbitservice string
 	flag.StringVar(&rabbitservice, "rabbitservice", "", "the rabbit service to autodiscover")
 	var postgresaddress string
-	flag.StringVar(&postgresaddress, "postgresaddress", "", "the postgres server to connect to")
+	flag.StringVar(&postgresaddress, "postgresaddress", "127.0.0.1", "the postgres server to connect to")
 	//parse
 	flag.Parse()
 
@@ -234,16 +234,12 @@ func main() {
 			s.add(d.CorrelationId, string(d.Body))
 
 			str := string(d.Body)
-			if !strings.HasPrefix(str, "ping ") {
-				log.Printf("Invalid string format")
-				continue
-			}
-
-			newstr := strings.Replace(str, "ping ", "", -1)
+			iindex := strings.Index(str, " ")
+			newstr := str[(iindex + 1):]
 			istr, _ := strconv.Atoi(newstr)
 
 			msg := "pong " + newstr
-			switch istr % 6 {
+			switch istr % 5 {
 			case 0:
 				msg = "pong " + newstr
 			case 1:
@@ -251,10 +247,8 @@ func main() {
 			case 2:
 				msg = "adios " + newstr
 			case 3:
-				msg = "zaijian " + newstr
-			case 4:
 				msg = "arrivederci " + newstr
-			case 5:
+			case 4:
 				msg = "sayonara " + newstr
 			}
 
