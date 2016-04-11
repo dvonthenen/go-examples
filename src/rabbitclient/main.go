@@ -127,6 +127,20 @@ func main() {
 
 		for {
 			msg := "ping " + strconv.Itoa(count)
+			switch count % 6 {
+			case 0:
+				msg = "ping " + strconv.Itoa(count)
+			case 1:
+				msg = "hello " + strconv.Itoa(count)
+			case 2:
+				msg = "hola " + strconv.Itoa(count)
+			case 3:
+				msg = "ni hao " + strconv.Itoa(count)
+			case 4:
+				msg = "ciao " + strconv.Itoa(count)
+			case 5:
+				msg = "konnichiwa " + strconv.Itoa(count)
+			}
 			log.Printf("-> Sending %s", msg)
 
 			err = ch.Publish(

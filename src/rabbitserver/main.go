@@ -1,17 +1,20 @@
 package main
 
 import (
+	"database/sql"
 	"flag"
 	"fmt"
 	"log"
 	"math/rand"
 	"net"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	_ "github.com/lib/pq"
 	"github.com/streadway/amqp"
 )
 
@@ -23,7 +26,8 @@ func failOnError(err error, msg string) {
 }
 
 type session struct {
-	x map[string][]string
+	address string
+	x       map[string][]string
 	sync.Mutex
 }
 
@@ -33,19 +37,89 @@ func (s *session) add(key string, str string) {
 	s.Unlock()
 }
 
-func (s *session) print() string {
+func (s *session) printMessages() string {
 	s.Lock()
 	str := "<html><head><title>Output</title><meta http-equiv=\"refresh\" content=\"2\" /></head><body>"
 
-	for k, v := range s.x {
+	var keys []string
+	for tk := range s.x {
+		keys = append(keys, tk)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
 		str += "Client "
 		str += k
 		str += "<br />"
-		for _, m := range v {
+		for _, m := range s.x[k] {
 			str += "&nbsp;&nbsp;&nbsp;"
 			str += m
 			str += "<br />"
 		}
+	}
+
+	/*
+		for k, v := range s.x {
+			str += "Client "
+			str += k
+			str += "<br />"
+			for _, m := range v {
+				str += "&nbsp;&nbsp;&nbsp;"
+				str += m
+				str += "<br />"
+			}
+		}
+	*/
+
+	str += "</body></html>"
+	s.Unlock()
+
+	return str
+}
+
+func (s *session) printDatabase() string {
+	s.Lock()
+	str := "<html><head><title>Output</title><meta http-equiv=\"refresh\" content=\"2\" /></head><body>"
+
+	db, err := sql.Open("postgres", "host="+s.address+" user=dev password=vmware dbname=demo sslmode=disable")
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	//SELECT
+	rows, err := db.Query("SELECT id, client,	received_message,	sent_message FROM message ORDER BY client DESC, id ASC")
+	if err != nil {
+		panic(err)
+	}
+
+	lastclient := ""
+
+	for rows.Next() {
+		var id int
+		var client string
+		var receivedMessage string
+		var sentMessage string
+		err = rows.Scan(&id, &client, &receivedMessage, &sentMessage)
+		if err != nil {
+			continue
+		}
+
+		fmt.Println("id:", id, " client:", client, " receivedMessage:", receivedMessage,
+			" sentMessage:", sentMessage)
+
+		if !strings.EqualFold(client, lastclient) {
+			str += "Client "
+			str += client
+			str += "<br />"
+		}
+		lastclient = client
+
+		str += "&nbsp;&nbsp;&nbsp;"
+		str += receivedMessage
+		str += " <---> "
+		str += sentMessage
+		str += "<br />"
 	}
 
 	str += "</body></html>"
@@ -72,20 +146,42 @@ func generateRabbitURI(service string) string {
 	return "amqp://guest:guest@" + srvs[random].Target + ":5672/"
 }
 
+func addTransactionToDb(address string, client string, received string, response string) {
+	db, err := sql.Open("postgres", "host="+address+" user=dev password=vmware dbname=demo sslmode=disable")
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	fmt.Printf("Received: %s, Response: %s\n", received, response)
+
+	//INSERT
+	var messageid int
+	err = db.QueryRow("INSERT INTO message (client, received_message, sent_message) VALUES ($1, $2, $3) RETURNING id",
+		client, received, response).Scan(&messageid)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("ID: ", messageid)
+}
+
 func main() {
 	//define flags
 	var port int
 	flag.IntVar(&port, "port", 9000, "the port in which to bind the HTTP server to")
 	var address string
 	flag.StringVar(&address, "address", "127.0.0.1", "the rabbit server in which to bind to")
-	var service string
-	flag.StringVar(&service, "service", "", "the rabbit service to autodiscover")
+	var rabbitservice string
+	flag.StringVar(&rabbitservice, "rabbitservice", "", "the rabbit service to autodiscover")
+	var postgresaddress string
+	flag.StringVar(&postgresaddress, "postgresaddress", "", "the postgres server to connect to")
 	//parse
 	flag.Parse()
 
 	connstr := "amqp://guest:guest@" + address + ":5672/"
-	if len(service) > 0 {
-		connstr = generateRabbitURI(service)
+	if len(rabbitservice) > 0 {
+		connstr = generateRabbitURI(rabbitservice)
 	}
 
 	conn, err := amqp.Dial(connstr)
@@ -127,6 +223,7 @@ func main() {
 	//keep history
 	s := new(session)
 	s.x = make(map[string][]string)
+	s.address = postgresaddress
 
 	forever := make(chan bool)
 
@@ -143,9 +240,27 @@ func main() {
 			}
 
 			newstr := strings.Replace(str, "ping ", "", -1)
+			istr, _ := strconv.Atoi(newstr)
 
 			msg := "pong " + newstr
+			switch istr % 6 {
+			case 0:
+				msg = "pong " + newstr
+			case 1:
+				msg = "goodbye " + newstr
+			case 2:
+				msg = "adios " + newstr
+			case 3:
+				msg = "zaijian " + newstr
+			case 4:
+				msg = "arrivederci " + newstr
+			case 5:
+				msg = "sayonara " + newstr
+			}
+
 			log.Printf("-> Sending %s to %s", msg, d.CorrelationId)
+
+			addTransactionToDb(postgresaddress, d.CorrelationId, str, msg)
 
 			err = ch.Publish(
 				"",        // exchange
@@ -164,14 +279,21 @@ func main() {
 	}()
 
 	//http server to display history
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		serveRest(w, r, s)
+	http.HandleFunc("/messages", func(w http.ResponseWriter, r *http.Request) {
+		printMessages(w, r, s)
+	})
+	http.HandleFunc("/database", func(w http.ResponseWriter, r *http.Request) {
+		printDatabase(w, r, s)
 	})
 	http.ListenAndServe(":"+strconv.Itoa(port), nil)
 
 	<-forever
 }
 
-func serveRest(w http.ResponseWriter, r *http.Request, s *session) {
-	fmt.Fprintf(w, s.print())
+func printMessages(w http.ResponseWriter, r *http.Request, s *session) {
+	fmt.Fprintf(w, s.printMessages())
+}
+
+func printDatabase(w http.ResponseWriter, r *http.Request, s *session) {
+	fmt.Fprintf(w, s.printDatabase())
 }
