@@ -71,7 +71,7 @@ func generateRabbitURI(service string) string {
 func main() {
 	//define flags
 	var port int
-	flag.IntVar(&port, "port", 9001, "the port in which to bind the HTTP server to")
+	flag.IntVar(&port, "port", 8000, "the port in which to bind the HTTP server to")
 	var address string
 	flag.StringVar(&address, "address", "127.0.0.1", "the rabbit server in which to bind to")
 	var service string
@@ -127,7 +127,7 @@ func main() {
 
 		for {
 			msg := "ping " + strconv.Itoa(count)
-			switch count % 6 {
+			switch count % 5 {
 			case 0:
 				msg = "ping " + strconv.Itoa(count)
 			case 1:
@@ -135,10 +135,8 @@ func main() {
 			case 2:
 				msg = "hola " + strconv.Itoa(count)
 			case 3:
-				msg = "ni hao " + strconv.Itoa(count)
-			case 4:
 				msg = "ciao " + strconv.Itoa(count)
-			case 5:
+			case 4:
 				msg = "konnichiwa " + strconv.Itoa(count)
 			}
 			log.Printf("-> Sending %s", msg)
