@@ -273,6 +273,9 @@ func main() {
 	}()
 
 	//http server to display history
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		printMessages(w, r, s)
+	})
 	http.HandleFunc("/messages", func(w http.ResponseWriter, r *http.Request) {
 		printMessages(w, r, s)
 	})
