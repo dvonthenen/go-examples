@@ -163,7 +163,7 @@ func main() {
 			}
 
 			rand.Seed(time.Now().UnixNano())
-			random := rand.Intn(4) + 1
+			random := rand.Intn(4) + 3
 			time.Sleep(time.Duration(random) * time.Second)
 
 			count++
