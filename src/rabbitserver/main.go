@@ -58,19 +58,6 @@ func (s *session) printMessages() string {
 		}
 	}
 
-	/*
-		for k, v := range s.x {
-			str += "Client "
-			str += k
-			str += "<br />"
-			for _, m := range v {
-				str += "&nbsp;&nbsp;&nbsp;"
-				str += m
-				str += "<br />"
-			}
-		}
-	*/
-
 	str += "</body></html>"
 	s.Unlock()
 
@@ -229,9 +216,9 @@ func main() {
 
 	go func() {
 		for d := range msgs {
-			log.Printf("<- Received %s from %s", d.Body, d.CorrelationId)
+			log.Printf("<- Received %s from %s", d.Body, d.ReplyTo)
 
-			s.add(d.CorrelationId, string(d.Body))
+			s.add(d.ReplyTo, string(d.Body))
 
 			str := string(d.Body)
 			iindex := strings.Index(str, " ")
@@ -252,9 +239,9 @@ func main() {
 				msg = "sayonara " + newstr
 			}
 
-			log.Printf("-> Sending %s to %s", msg, d.CorrelationId)
+			log.Printf("-> Sending %s to %s", msg, d.ReplyTo)
 
-			addTransactionToDb(postgresaddress, d.CorrelationId, str, msg)
+			addTransactionToDb(postgresaddress, d.ReplyTo, str, msg)
 
 			err = ch.Publish(
 				"",        // exchange
