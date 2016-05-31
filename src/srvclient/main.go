@@ -2,24 +2,27 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"net"
-	"strings"
+	"strconv"
+	"time"
 )
 
 func main() {
-	cname, srvs, err := net.LookupSRV("postgres", "tcp", "marathon.mesos")
+	fmt.Println("USING AUTODISCOVERY")
+	_, srvs, err := net.LookupSRV("restapi", "tcp", "marathon.mesos")
 	if err != nil {
 		panic(err)
 	}
 	if len(srvs) == 0 {
 		fmt.Println("got no record")
 	}
-	if !strings.HasSuffix(cname, "marathon.mesos") {
-		fmt.Println("got", cname, "want marathon.mesos")
-	}
 	for _, srv := range srvs {
-		if !strings.HasSuffix(srv.Target, "marathon.mesos") {
-			fmt.Println("got", srv, "want a record containing marathon.mesos")
-		}
+		fmt.Println("Discovered service:", srv.Target, "port", srv.Port)
 	}
+
+	rand.Seed(time.Now().UnixNano())
+	random := rand.Intn(len(srvs))
+	url := "http://" + srvs[random].Target + ":" + strconv.Itoa(int(srvs[random].Port)) + "/user"
+	fmt.Print(url + "\n")
 }
