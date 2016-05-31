@@ -13,6 +13,7 @@ func main() {
 	}
 	// handle err
 	for _, i := range ifaces {
+		fmt.Println("Name:", i.Name)
 		addrs, err := i.Addrs()
 		if err != nil {
 			fmt.Print("Error 2: ", err, "\n")
