@@ -64,7 +64,7 @@ func main() {
 		log.Fatalln("Bad PD:", pdID, "!=", tmpPd.ID)
 	}
 
-	pd := scaleio.NewProtectionDomainEx(client, tmpPd)
+	pd := goscaleio.NewProtectionDomainEx(client, tmpPd)
 
 	spID, err := pd.CreateStoragePool("sp")
 	if err != nil {
@@ -78,17 +78,17 @@ func main() {
 		log.Fatalln("Bad SP:", spID, "!=", tmpSp.ID)
 	}
 
+	sp := goscaleio.NewStoragePoolEx(client, tmpSp)
+
 	sdsIPs := strings.Split(cfg.SdsList, ",")
 	for i := 0; i < len(sdsIPs); i++ {
-		sp := scaleio.NewStoragePoolEx(client, tmpSp)
-
 		sdsIDstr := "sds" + strconv.Itoa(i+1)
-		sdsID, err := sp.CreateSds(sdsIDstr, sdsIPs[i], pd.ProtectionDomain.ID,
+		sdsID, err := pd.CreateSds(sdsIDstr, []string{sdsIPs[i]}, pd.ProtectionDomain.ID,
 			[]string{"/dev/xvdf"}, []string{sp.StoragePool.ID})
 		if err != nil {
 			log.Fatalln("CreateSds Error:", err)
 		}
-		tmpSds, err := sp.FindSds("", sdsIDstr, "")
+		tmpSds, err := pd.FindSds("name", sdsIDstr)
 		if err != nil {
 			log.Fatalln("FindSds Error:", err)
 		}
@@ -96,6 +96,4 @@ func main() {
 			log.Fatalln("Bad SP:", sdsID, "!=", tmpSds.ID)
 		}
 	}
-
-	//TODO
 }
