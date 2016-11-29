@@ -1,0 +1,13 @@
+package: github.com/dvonthenen/goprojects/scaleio-test
+import:
+- package: github.com/Sirupsen/logrus
+  ref:     v0.10.0
+  vcs:     git
+- package: github.com/stretchr/testify
+  ref:     v1.1.3
+  vcs:     git
+  
+- package: github.com/codedellemc/goscaleio
+  ref:     4c17d722ef8ac34806d6c1ad244277bf926cc919
+  vcs:     git
+  repo:    https://github.com/dvonthenen/goscaleio
