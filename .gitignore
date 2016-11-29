@@ -2,4 +2,5 @@
 .DS_Store
 scaleio-test/glide.lock
 scaleio-test/vendor/
+scaleio-test/scaleio-test
 .build/
