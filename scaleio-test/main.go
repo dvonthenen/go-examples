@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"os"
+	"strconv"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	goscaleio "github.com/codedellemc/goscaleio"
@@ -76,22 +78,24 @@ func main() {
 		log.Fatalln("Bad SP:", spID, "!=", tmpSp.ID)
 	}
 
-	sp := scaleio.NewStoragePoolEx(client, tmpSp)
+	sdsIPs := strings.Split(cfg.SdsList, ",")
+	for i := 0; i < len(sdsIPs); i++ {
+		sp := scaleio.NewStoragePoolEx(client, tmpSp)
 
-	sdsID, err := sp.CreateSds("sds", "TODO_IP", pd.ProtectionDomain.ID,
-		[]string{"/dev/xvdf"}, []string{sp.StoragePool.ID})
-	if err != nil {
-		log.Fatalln("CreateSds Error:", err)
+		sdsIDstr := "sds" + strconv.Itoa(i+1)
+		sdsID, err := sp.CreateSds(sdsIDstr, sdsIPs[i], pd.ProtectionDomain.ID,
+			[]string{"/dev/xvdf"}, []string{sp.StoragePool.ID})
+		if err != nil {
+			log.Fatalln("CreateSds Error:", err)
+		}
+		tmpSds, err := sp.FindSds("", sdsIDstr, "")
+		if err != nil {
+			log.Fatalln("FindSds Error:", err)
+		}
+		if sdsID != tmpSds.ID {
+			log.Fatalln("Bad SP:", sdsID, "!=", tmpSds.ID)
+		}
 	}
-	tmpSds, err := sp.FindSds("", "sds", "")
-	if err != nil {
-		log.Fatalln("FindSds Error:", err)
-	}
-	if sdsID != tmpSds.ID {
-		log.Fatalln("Bad SP:", sdsID, "!=", tmpSds.ID)
-	}
-
-	sds := scaleio.NewSdsEx(client, tmpSds)
 
 	//TODO
 }
