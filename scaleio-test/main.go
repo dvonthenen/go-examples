@@ -134,7 +134,7 @@ func main() {
 		if err != nil {
 			log.Fatalln("AttachDevice Error:", err)
 		}
-		log.Fatalln("DEV Added:", devID)
+		log.Infoln("DEV Added:", devID)
 	}
 
 }
