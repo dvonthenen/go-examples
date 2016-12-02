@@ -26,7 +26,7 @@ func NewConfig() *Config {
 		GatewayIP: env("SCALEIO_GATEWAY_IP", "127.0.0.1"),
 		Username:  env("SCALEIO_GATEWAY_USERNAME", "admin"),
 		Password:  env("SCALEIO_GATEWAY_PASSWORD", "admin"),
-		Version:   env("SCALEIO_GATEWAY_VERSION", ""),
+		Version:   env("SCALEIO_GATEWAY_VERSION", "2.0"),
 		SdsList:   env("SCALEIO_SDS_LIST", ""),
 	}
 }

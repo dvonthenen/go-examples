@@ -112,11 +112,13 @@ func main() {
 		}
 
 		//Create it!
+		log.Infoln("Creating", sdsIDstr, "for", sdsIPs[i])
+
 		sdsID, err := pd.CreateSds(sdsIDstr, []string{sdsIPs[i]})
 		if err != nil {
 			log.Fatalln("CreateSds Error:", err)
 		}
-		tmpSds, err = pd.FindSds("name", sdsIDstr)
+		tmpSds, err = pd.FindSds("Name", sdsIDstr)
 		if err != nil {
 			log.Fatalln("FindSds Error:", err)
 		}
@@ -132,14 +134,7 @@ func main() {
 		if err != nil {
 			log.Fatalln("AttachDevice Error:", err)
 		}
-		tmpDev, err := sp.FindDevice("id", devID)
-		if err != nil {
-			log.Fatalln("FindDevice Error:", err)
-		}
-		if devID != tmpDev.ID {
-			log.Fatalln("Bad DEV:", devID, "!=", tmpDev.ID)
-		}
-		log.Fatalln("DEV Found:", devID, "!=", tmpDev.ID)
+		log.Fatalln("DEV Added:", devID)
 	}
 
 }
