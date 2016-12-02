@@ -29,18 +29,25 @@ func main() {
 		log.Fatalln("SDS List is empty")
 	}
 
-	client, err := goscaleio.NewClient()
-	if err != nil {
-		log.Fatalln("NewClient Error:", err)
-	}
+	log.Infoln("IP:", cfg.GatewayIP)
+	log.Infoln("Version:", cfg.Version)
+	log.Infoln("Username:", cfg.Username)
+	log.Infoln("Password:", cfg.Password)
+	log.Infoln("SDSList:", cfg.SdsList)
 
-	endpoint := "http://" + cfg.GatewayIP + "/api"
+	endpoint := "https://" + cfg.GatewayIP + "/api"
+	log.Infoln("Endpoint:", endpoint)
+
+	client, err := goscaleio.NewClientWithArgs(endpoint, cfg.Version, true, false)
+	if err != nil {
+		log.Fatalln("NewClientWithArgs Error:", err)
+	}
 
 	_, err = client.Authenticate(&goscaleio.ConfigConnect{
 		Endpoint: endpoint,
 		Username: cfg.Username,
 		Password: cfg.Password,
-		Version:  cfg.Version,
+		//Version:  cfg.Version,
 	})
 	if err != nil {
 		log.Fatalln("Authenticate Error:", err)
@@ -51,31 +58,46 @@ func main() {
 	if err != nil {
 		log.Fatalln("FindSystem Error:", err)
 	}
+	log.Infoln("Found system \"scaleio\"")
 
-	pdID, err := system.CreateProtectionDomain("pd")
+	tmpPd, err := system.FindProtectionDomain("", "default", "")
 	if err != nil {
-		log.Fatalln("CreateProtectionDomain Error:", err)
-	}
-	tmpPd, err := system.FindProtectionDomain("", "pd", "")
-	if err != nil {
-		log.Fatalln("FindProtectionDomain Error:", err)
-	}
-	if pdID != tmpPd.ID {
-		log.Fatalln("Bad PD:", pdID, "!=", tmpPd.ID)
+		//create it!
+		pdID, err := system.CreateProtectionDomain("default")
+		if err != nil {
+			log.Fatalln("CreateProtectionDomain Error:", err)
+		}
+		tmpPd, err = system.FindProtectionDomain("", "default", "")
+		if err != nil {
+			log.Fatalln("FindProtectionDomain Error:", err)
+		}
+		if pdID != tmpPd.ID {
+			log.Fatalln("Bad PD:", pdID, "!=", tmpPd.ID)
+		}
+		log.Infoln("PD Found:", pdID, "=", tmpPd.ID)
+	} else {
+		log.Infoln("PD Found:", tmpPd.ID)
 	}
 
 	pd := goscaleio.NewProtectionDomainEx(client, tmpPd)
 
-	spID, err := pd.CreateStoragePool("sp")
+	tmpSp, err := pd.FindStoragePool("", "default", "")
 	if err != nil {
-		log.Fatalln("CreateStoragePool Error:", err)
-	}
-	tmpSp, err := pd.FindStoragePool("", "sp", "")
-	if err != nil {
-		log.Fatalln("FindStoragePool Error:", err)
-	}
-	if spID != tmpSp.ID {
-		log.Fatalln("Bad SP:", spID, "!=", tmpSp.ID)
+		//Create it!
+		spID, err := pd.CreateStoragePool("default")
+		if err != nil {
+			log.Fatalln("CreateStoragePool Error:", err)
+		}
+		tmpSp, err = pd.FindStoragePool("", "default", "")
+		if err != nil {
+			log.Fatalln("FindStoragePool Error:", err)
+		}
+		if spID != tmpSp.ID {
+			log.Fatalln("Bad SP:", spID, "!=", tmpSp.ID)
+		}
+		log.Infoln("SP Found:", spID, "=", tmpSp.ID)
+	} else {
+		log.Infoln("SP Found:", tmpSp.ID)
 	}
 
 	sp := goscaleio.NewStoragePoolEx(client, tmpSp)
@@ -83,17 +105,41 @@ func main() {
 	sdsIPs := strings.Split(cfg.SdsList, ",")
 	for i := 0; i < len(sdsIPs); i++ {
 		sdsIDstr := "sds" + strconv.Itoa(i+1)
-		sdsID, err := pd.CreateSds(sdsIDstr, []string{sdsIPs[i]}, pd.ProtectionDomain.ID,
-			[]string{"/dev/xvdf"}, []string{sp.StoragePool.ID})
+		tmpSds, err := pd.FindSds("name", sdsIDstr)
+		if err == nil && len(tmpSds.ID) > 0 {
+			log.Fatalln("FindSds Found:", sdsIDstr)
+			continue
+		}
+
+		//Create it!
+		sdsID, err := pd.CreateSds(sdsIDstr, []string{sdsIPs[i]})
 		if err != nil {
 			log.Fatalln("CreateSds Error:", err)
 		}
-		tmpSds, err := pd.FindSds("name", sdsIDstr)
+		tmpSds, err = pd.FindSds("name", sdsIDstr)
 		if err != nil {
 			log.Fatalln("FindSds Error:", err)
 		}
 		if sdsID != tmpSds.ID {
 			log.Fatalln("Bad SP:", sdsID, "!=", tmpSds.ID)
 		}
+		log.Infoln("SDS Found:", sdsID, "=", tmpSds.ID)
+
+		sds := goscaleio.NewSdsEx(client, tmpSds)
+
+		//Add device
+		devID, err := sp.AttachDevice("/dev/xvdf", sds.Sds.ID)
+		if err != nil {
+			log.Fatalln("AttachDevice Error:", err)
+		}
+		tmpDev, err := sp.FindDevice("id", devID)
+		if err != nil {
+			log.Fatalln("FindDevice Error:", err)
+		}
+		if devID != tmpDev.ID {
+			log.Fatalln("Bad DEV:", devID, "!=", tmpDev.ID)
+		}
+		log.Fatalln("DEV Found:", devID, "!=", tmpDev.ID)
 	}
+
 }

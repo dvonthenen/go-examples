@@ -8,6 +8,6 @@ import:
   vcs:     git
   
 - package: github.com/codedellemc/goscaleio
-  ref:     7003e95c1d6a252579c3f92f911aff92f2d7939c
+  ref:     ec040031b9dd31578f532cf2e6a7fbd04db46d29
   vcs:     git
   repo:    https://github.com/dvonthenen/goscaleio
