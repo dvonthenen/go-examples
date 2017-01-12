@@ -21,9 +21,9 @@ func init() {
 
 func main() {
 	cfg := config.NewConfig()
-	fs := flag.NewFlagSet("scheduler", flag.ExitOnError)
-	cfg.AddFlags(fs)
-	fs.Parse(os.Args[1:])
+	flagSet := flag.NewFlagSet("scheduler", flag.ExitOnError)
+	cfg.AddFlags(flagSet)
+	flagSet.Parse(os.Args[1:])
 
 	if len(cfg.SdsList) == 0 {
 		log.Fatalln("SDS List is empty")
@@ -60,6 +60,7 @@ func main() {
 	}
 	log.Infoln("Found system \"scaleio\"")
 
+	//PD
 	tmpPd, err := system.FindProtectionDomain("", "default", "")
 	if err != nil {
 		//create it!
@@ -81,6 +82,59 @@ func main() {
 
 	pd := goscaleio.NewProtectionDomainEx(client, tmpPd)
 
+	//FS
+	tmpFs, err := pd.FindFaultSet("Name", "default")
+	if err != nil {
+		//create it!
+		fsID, err := pd.CreateFaultSet("default")
+		if err != nil {
+			log.Fatalln("CreateFaultSet Error:", err)
+		}
+		tmpFs, err = pd.FindFaultSet("Name", "default")
+		if err != nil {
+			log.Fatalln("FindFaultSet Error:", err)
+		}
+		if fsID != tmpFs.ID {
+			log.Fatalln("Bad FS:", fsID, "!=", tmpFs.ID)
+		}
+		log.Infoln("FS Found:", fsID, "=", tmpFs.ID)
+	} else {
+		log.Infoln("FS Found:", tmpFs.ID)
+	}
+
+	fs := goscaleio.NewFaultSetEx(client, tmpFs)
+
+	//SDS
+	sdsIPs := strings.Split(cfg.SdsList, ",")
+	var sds *goscaleio.Sds
+	for i := 0; i < len(sdsIPs); i++ {
+		sdsIDstr := "sds" + strconv.Itoa(i+1)
+		tmpSds, err := pd.FindSds("name", sdsIDstr)
+		if err == nil && len(tmpSds.ID) > 0 {
+			log.Fatalln("FindSds Found:", sdsIDstr)
+			continue
+		}
+
+		//Create it!
+		log.Infoln("Creating", sdsIDstr, "for", sdsIPs[i])
+
+		sdsID, err := pd.CreateSds(sdsIDstr, []string{sdsIPs[i]}, []string{"all"}, fs.FaultSet.ID)
+		if err != nil {
+			log.Fatalln("CreateSds Error:", err)
+		}
+		tmpSds, err = pd.FindSds("Name", sdsIDstr)
+		if err != nil {
+			log.Fatalln("FindSds Error:", err)
+		}
+		if sdsID != tmpSds.ID {
+			log.Fatalln("Bad SDS:", sdsID, "!=", tmpSds.ID)
+		}
+		log.Infoln("SDS Found:", sdsID, "=", tmpSds.ID)
+
+		sds = goscaleio.NewSdsEx(client, tmpSds)
+	}
+
+	//SP
 	tmpSp, err := pd.FindStoragePool("", "default", "")
 	if err != nil {
 		//Create it!
@@ -102,39 +156,10 @@ func main() {
 
 	sp := goscaleio.NewStoragePoolEx(client, tmpSp)
 
-	sdsIPs := strings.Split(cfg.SdsList, ",")
-	for i := 0; i < len(sdsIPs); i++ {
-		sdsIDstr := "sds" + strconv.Itoa(i+1)
-		tmpSds, err := pd.FindSds("name", sdsIDstr)
-		if err == nil && len(tmpSds.ID) > 0 {
-			log.Fatalln("FindSds Found:", sdsIDstr)
-			continue
-		}
-
-		//Create it!
-		log.Infoln("Creating", sdsIDstr, "for", sdsIPs[i])
-
-		sdsID, err := pd.CreateSds(sdsIDstr, []string{sdsIPs[i]})
-		if err != nil {
-			log.Fatalln("CreateSds Error:", err)
-		}
-		tmpSds, err = pd.FindSds("Name", sdsIDstr)
-		if err != nil {
-			log.Fatalln("FindSds Error:", err)
-		}
-		if sdsID != tmpSds.ID {
-			log.Fatalln("Bad SP:", sdsID, "!=", tmpSds.ID)
-		}
-		log.Infoln("SDS Found:", sdsID, "=", tmpSds.ID)
-
-		sds := goscaleio.NewSdsEx(client, tmpSds)
-
-		//Add device
-		devID, err := sp.AttachDevice("/dev/xvdf", sds.Sds.ID)
-		if err != nil {
-			log.Fatalln("AttachDevice Error:", err)
-		}
-		log.Infoln("DEV Added:", devID)
+	//Add device
+	devID, err := sp.AttachDevice("/dev/xvdf", sds.Sds.ID)
+	if err != nil {
+		log.Fatalln("AttachDevice Error:", err)
 	}
-
+	log.Infoln("DEV Added:", devID)
 }
