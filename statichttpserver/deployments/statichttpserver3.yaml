@@ -1,0 +1,31 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: statichttpserver3
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: statichttpserver3
+    spec:
+      containers:
+        - name: statichttpserver3
+          image: "dvonthenen/statichttpserver:latest"
+          imagePullPolicy: Always
+          env:
+            - name: DATA_PATH
+              value: /tmp
+            - name: LISTEN_PORT
+              value: 8083
+          volumeMounts:
+            - name: test-data
+              mountPath: /tmp
+      volumes:
+        - name: test-data
+          scaleIO:
+            gateway: https://10.138.0.6:443/api
+            system: scaleio
+            volumeName: statichttpserver3
+            secretRef:
+              name: sio-secret

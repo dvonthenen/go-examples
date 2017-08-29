@@ -3,4 +3,5 @@
 scaleio-test/glide.lock
 scaleio-test/vendor/
 scaleio-test/scaleio-test
+statichttpserver/statichttpserver
 .build/

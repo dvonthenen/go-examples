@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"log"
 	"math/rand"
@@ -12,6 +11,16 @@ import (
 	"time"
 )
 
+var (
+	dataPath   string
+	listenPort string
+)
+
+const (
+	defaultPath = "."
+	defaultPort = "8080"
+)
+
 func failOnError(err error, msg string) {
 	if err != nil {
 		log.Fatalf("%s: %s", msg, err)
@@ -19,19 +28,21 @@ func failOnError(err error, msg string) {
 	}
 }
 
+func env(key, defaultValue string) (value string) {
+	if value = os.Getenv(key); value == "" {
+		value = defaultValue
+	}
+	return
+}
+
 func main() {
-	//define flags
-	var path string
-	var port int
-	flag.StringVar(&path, "path", ".", "directory from which to serve files from")
-	flag.IntVar(&port, "port", 8080, "the port in which to bind to")
-	//parse
-	flag.Parse()
+	dataPath = env("DATA_PATH", defaultPath)
+	listenPort = env("LISTEN_PORT", defaultPort)
 
-	fmt.Println("path = ", path)
-	fmt.Println("port = ", port)
+	fmt.Println("path = ", dataPath)
+	fmt.Println("port = ", listenPort)
 
-	filename := path + "/mydata.txt"
+	filename := dataPath + "/mydata.txt"
 
 	go func() {
 		count := 0
@@ -67,5 +78,5 @@ func main() {
 
 	}()
 
-	panic(http.ListenAndServe(fmt.Sprintf(":%v", port), http.FileServer(http.Dir(path))))
+	panic(http.ListenAndServe(fmt.Sprintf(":%s", listenPort), http.FileServer(http.Dir(dataPath))))
 }
